@@ -1,0 +1,39 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+
+# Multiple MySQL datasource configurations
+mysql:
+  datasources:
+    primary:
+      url: jdbc:mysql://localhost:3306/primary_db
+      username: root
+      password: password
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    secondary:
+      url: jdbc:mysql://localhost:3306/secondary_db
+      username: root
+      password: password
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      
+# Multiple Hive connection properties
+hive:
+  datasources:
+    primary:
+      url: jdbc:hive2://localhost:10000/default
+      username: hive
+      password: hive
+      driver-class-name: org.apache.hive.jdbc.HiveDriver
+    secondary:
+      url: jdbc:hive2://localhost:10001/secondary
+      username: hive
+      password: hive
+      driver-class-name: org.apache.hive.jdbc.HiveDriver
