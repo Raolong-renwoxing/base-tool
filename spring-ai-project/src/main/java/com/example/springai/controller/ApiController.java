@@ -5,6 +5,7 @@ import com.example.springai.entity.secondary.Product;
 import com.example.springai.repository.UserRepository;
 import com.example.springai.repository.secondary.ProductRepository;
 import com.example.springai.service.AiService;
+import com.example.springai.service.ApiClientService;
 import com.example.springai.service.HiveService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api")
@@ -22,17 +24,20 @@ public class ApiController {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final HiveService hiveService;
+    private final ApiClientService apiClientService;
 
     @Autowired
     public ApiController(
             AiService aiService, 
             UserRepository userRepository,
             ProductRepository productRepository,
-            HiveService hiveService) {
+            HiveService hiveService,
+            ApiClientService apiClientService) {
         this.aiService = aiService;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.hiveService = hiveService;
+        this.apiClientService = apiClientService;
     }
 
     @PostMapping("/ai/generate")
@@ -94,6 +99,86 @@ public class ApiController {
         
         List<Map<String, Object>> result = hiveService.executeSecondaryQuery(query);
         return ResponseEntity.ok(result);
+    }
+    
+    // External API endpoints using OkHttp
+    @PostMapping("/external")
+    public ResponseEntity<?> callExternalApi(@RequestBody Map<String, Object> request) {
+        try {
+            String url = (String) request.get("url");
+            String method = (String) request.getOrDefault("method", "GET");
+            
+            if (url == null || url.isEmpty()) {
+                return ResponseEntity.badRequest().body("URL is required");
+            }
+            
+            if ("GET".equalsIgnoreCase(method)) {
+                String response = apiClientService.get(url);
+                Map<String, Object> responseMap = apiClientService.parseJsonToMap(response);
+                return ResponseEntity.ok(responseMap);
+            } else if ("POST".equalsIgnoreCase(method)) {
+                Object body = request.get("body");
+                if (body == null) {
+                    return ResponseEntity.badRequest().body("Request body is required for POST requests");
+                }
+                
+                String response = apiClientService.post(url, body);
+                Map<String, Object> responseMap = apiClientService.parseJsonToMap(response);
+                return ResponseEntity.ok(responseMap);
+            } else {
+                return ResponseEntity.badRequest().body("Unsupported method: " + method);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error calling external API: " + e.getMessage());
+        }
+    }
+    
+    // Async external API call
+    @PostMapping("/external/async")
+    public CompletableFuture<ResponseEntity<?>> callExternalApiAsync(@RequestBody Map<String, Object> request) {
+        String url = (String) request.get("url");
+        String method = (String) request.getOrDefault("method", "GET");
+        
+        if (url == null || url.isEmpty()) {
+            return CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body("URL is required")
+            );
+        }
+        
+        if ("GET".equalsIgnoreCase(method)) {
+            return apiClientService.getAsync(url)
+                .thenApply(response -> {
+                    try {
+                        Map<String, Object> responseMap = apiClientService.parseJsonToMap(response);
+                        return ResponseEntity.ok(responseMap);
+                    } catch (Exception e) {
+                        return ResponseEntity.status(500).body("Error parsing response: " + e.getMessage());
+                    }
+                })
+                .exceptionally(e -> ResponseEntity.status(500).body("Error calling external API: " + e.getMessage()));
+        } else if ("POST".equalsIgnoreCase(method)) {
+            Object body = request.get("body");
+            if (body == null) {
+                return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body("Request body is required for POST requests")
+                );
+            }
+            
+            return apiClientService.postAsync(url, body)
+                .thenApply(response -> {
+                    try {
+                        Map<String, Object> responseMap = apiClientService.parseJsonToMap(response);
+                        return ResponseEntity.ok(responseMap);
+                    } catch (Exception e) {
+                        return ResponseEntity.status(500).body("Error parsing response: " + e.getMessage());
+                    }
+                })
+                .exceptionally(e -> ResponseEntity.status(500).body("Error calling external API: " + e.getMessage()));
+        } else {
+            return CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body("Unsupported method: " + method)
+            );
+        }
     }
     
     // Get database connection status

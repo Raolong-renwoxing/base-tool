@@ -7,11 +7,12 @@ This project demonstrates a Spring Boot application that integrates Spring AI wi
 - Spring AI integration with OpenAI
 - Multiple MySQL database connections for relational data storage
 - Multiple Hive database connections for big data processing
-- RESTful API endpoints for AI, MySQL, and Hive operations
+- OkHttp integration for external API calls
+- RESTful API endpoints for AI, MySQL, Hive, and external API operations
 
 ## Prerequisites
 
-- Java 17 or higher
+- Java 20 or higher
 - Maven
 - MySQL server(s)
 - Hive server(s)
@@ -94,6 +95,11 @@ Secondary Database:
 - `POST /api/hive/primary/query` - Execute a query on the primary Hive connection
 - `POST /api/hive/secondary/query` - Execute a query on the secondary Hive connection
 
+### External API Endpoints (OkHttp)
+
+- `POST /api/external` - Call an external API synchronously
+- `POST /api/external/async` - Call an external API asynchronously
+
 ### Status Endpoint
 
 - `GET /api/status` - Check the status of all database connections
@@ -108,6 +114,7 @@ The project uses the following major dependencies:
 - MySQL Connector
 - Hive JDBC 3.1.3
 - Hadoop Common 3.3.6
+- OkHttp 4.12.0
 
 ## Dependency Conflict Resolution
 
@@ -129,6 +136,43 @@ The project uses the following approach to manage multiple database connections:
 2. **Hive Connections**:
    - Configures multiple JDBC templates for different Hive connections
    - Provides service methods to interact with each Hive connection
+
+## External API Integration
+
+The project integrates OkHttp for making external API calls:
+
+1. **OkHttp Client**:
+   - Configured with appropriate timeouts and connection pooling
+   - Includes logging interceptor for debugging
+
+2. **API Client Service**:
+   - Provides synchronous and asynchronous methods for GET and POST requests
+   - Handles JSON serialization and deserialization
+   - Includes error handling and response parsing
+
+3. **REST Endpoints**:
+   - `/api/external` for synchronous API calls
+   - `/api/external/async` for asynchronous API calls
+
+### Example Usage
+
+```json
+// POST to /api/external
+{
+  "url": "https://api.example.com/data",
+  "method": "GET"
+}
+
+// POST to /api/external with POST method
+{
+  "url": "https://api.example.com/data",
+  "method": "POST",
+  "body": {
+    "key1": "value1",
+    "key2": "value2"
+  }
+}
+```
 
 ## License
 
